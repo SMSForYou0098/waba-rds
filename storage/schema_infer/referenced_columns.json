@@ -1,0 +1,150 @@
+{
+    "badges": [
+        "id",
+        "user_id"
+    ],
+    "balances": [
+        "account_manager_id",
+        "alert_credit",
+        "auto_deduction",
+        "created_at",
+        "duplicate_count",
+        "id",
+        "manual_deduction",
+        "new_credit",
+        "payment_type",
+        "remarks",
+        "report_id",
+        "total_credits",
+        "updated_at",
+        "user_id"
+    ],
+    "campaign_reports": [
+        "campaign_id",
+        "id",
+        "message_id",
+        "status",
+        "template_category"
+    ],
+    "campaign_reports as cr": [
+        "campaign_id",
+        "user_id"
+    ],
+    "campaigns": [
+        "created_at",
+        "id",
+        "user_id"
+    ],
+    "chat_histories": [
+        "created_at",
+        "message",
+        "message_id",
+        "report_id",
+        "type"
+    ],
+    "chatbot": [
+        "media_id"
+    ],
+    "chatbot_memories": [
+        "updated_at"
+    ],
+    "chatbot_states": [
+        "updated_at"
+    ],
+    "email_templates": [
+        "subject",
+        "template_id"
+    ],
+    "logdatas": [
+        "created_at",
+        "display_phone_number",
+        "logs",
+        "message_id",
+        "record_count",
+        "reprocessed_at"
+    ],
+    "model_has_roles": [
+        "model_id"
+    ],
+    "out_reports": [
+        "billable",
+        "campaign_id",
+        "display_phone_number",
+        "id",
+        "recipient_id",
+        "status",
+        "status_id",
+        "updated_at",
+        "user_id"
+    ],
+    "password_reset_tokens": [
+        "email"
+    ],
+    "plan_change_logs": [
+        "changed_by",
+        "created_at",
+        "from_plan_id",
+        "reason",
+        "to_plan_id",
+        "updated_at",
+        "user_id"
+    ],
+    "plans": [
+        "role_id"
+    ],
+    "pricing_models": [
+        "created_at",
+        "user_id"
+    ],
+    "report_has_badges": [
+        "badge_id",
+        "report_id"
+    ],
+    "reports": [
+        "created_at",
+        "display_phone_number",
+        "status",
+        "wa_id"
+    ],
+    "reports as r": [
+        "display_phone_number",
+        "id"
+    ],
+    "roles": [
+        "id",
+        "role_id"
+    ],
+    "users": [
+        "company_name",
+        "created_at",
+        "deleted_at",
+        "email",
+        "id",
+        "model_id",
+        "name",
+        "phone_number",
+        "reporting_user",
+        "role_id",
+        "status",
+        "total_credits",
+        "user_billing",
+        "whatsapp_number"
+    ],
+    "users as u": [
+        "company_name",
+        "deleted_at",
+        "email",
+        "email_alerts",
+        "id",
+        "key",
+        "name",
+        "phone_number",
+        "price_alert",
+        "role_id",
+        "status",
+        "text_alerts",
+        "total_credits",
+        "whatsapp_alerts",
+        "whatsapp_number"
+    ]
+}
