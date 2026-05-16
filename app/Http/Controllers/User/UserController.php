@@ -16,11 +16,16 @@ use Illuminate\Support\Facades\Http;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Settings\BrandingConfiguration;
+use App\Services\Billing\CampaignPricingService;
 use DB;
+
 class UserController extends Controller
 {
+    public function __construct(
+        protected CampaignPricingService $campaignPricingService
+    ) {}
 
-public function index()
+    public function index()
 {
     $user = Auth::user();
     $isAdmin = $user->hasRole('Admin');
@@ -902,7 +907,7 @@ public function index()
                 $categoryBreakdown = [];
 
                 foreach ($campaignReports as $report) {
-                    $price = $this->getPriceByCategory($userPricing, $report->template_category);
+                    $price = $this->campaignPricingService->unitPriceForTemplateCategory($userPricing, $report->template_category);
                     $cost = $report->count * $price;
                     $campaignCost += $cost;
                     $totalReports += $report->count;
@@ -940,24 +945,4 @@ public function index()
             ];
         }
     }
-  
-    private function getPriceByCategory($userPricing, $templateCategory)
-    {
-        switch (strtolower($templateCategory)) {
-            case 'marketing':
-                return (float) ($userPricing->marketing_price ?? 0);
-            case 'utility':
-                return (float) ($userPricing->utility_price ?? 0);
-            case 'authentication':
-                return (float) ($userPricing->authentication_price ?? 0);
-            case 'service':
-                return (float) ($userPricing->service_price ?? 0);
-            default:
-                // Default to marketing price if category not found
-                return (float) ($userPricing->marketing_price ?? 0);
-        }
-    }
-  
-  
-
 }

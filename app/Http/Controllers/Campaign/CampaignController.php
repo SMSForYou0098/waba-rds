@@ -14,6 +14,8 @@ use App\Services\Campaign\CampaignProcessingService;
 
 class CampaignController extends Controller
 {
+    protected CampaignProcessingService $campaignProcessingService;
+
   	public function __construct(CampaignProcessingService $campaignProcessingService)
     {
         $this->campaignProcessingService = $campaignProcessingService;
@@ -41,7 +43,7 @@ class CampaignController extends Controller
             });
         }
         // Fetch campaigns
-        $campaigns = $query->get(['id', 'name', 'template_name', 'created_at']);
+        $campaigns = $query->get(['id', 'user_id', 'name', 'template_name', 'created_at']);
         // Fetch only the counts needed for effectiveness ratio
         $reportStats = DB::table('campaign_reports')
             ->select(
@@ -76,8 +78,20 @@ class CampaignController extends Controller
                 $campaign->pending_count = $stats->pending_count;
                 // Calculate sent ratio
                 $campaign->sent_ratio = ($campaign->sent_count / $validReports) * 100;
+                $processedCount = (int) $campaign->sent_count + (int) $campaign->failed_count;
+                $campaign->progress_percent = $validReports > 0
+                    ? round(($processedCount / $validReports) * 100, 2)
+                    : 0.0;
+                $campaign->campaign_status = ((int) $campaign->pending_count) === 0 ? 'completed' : 'processing';
+                $campaign->should_subscribe_reverb = ((int) $campaign->pending_count) > 0;
+                $campaign->progress_channel = 'campaign.'.(int) $campaign->user_id;
 
-                $validNumerator = (int) $campaign->sent_count + (int) $campaign->delivered_count + (int) $campaign->read_count + (int) $campaign->failed_count;
+                $validNumerator = (int) $campaign->sent_count +
+                    (int) $campaign->delivered_count +
+                    (int) $campaign->read_count +
+                    (int) $campaign->failed_count +
+                    (int) $campaign->pending_count;
+
                 $validDenominator = (int) $campaign->campaign_reports_count;
 
                 if ($validDenominator > 0 && $validNumerator === $validDenominator) {
@@ -97,6 +111,16 @@ class CampaignController extends Controller
                     : 0;
             } else {
                 $campaign->campaign_reports_count = 0;
+                $campaign->sent_count = 0;
+                $campaign->delivered_count = 0;
+                $campaign->read_count = 0;
+                $campaign->failed_count = 0;
+                $campaign->pending_count = 0;
+                $campaign->sent_ratio = 0;
+                $campaign->progress_percent = 0.0;
+                $campaign->campaign_status = 'not_started';
+                $campaign->should_subscribe_reverb = false;
+                $campaign->progress_channel = 'campaign.'.(int) $campaign->user_id;
                 $campaign->delivery_ratio = 0;
                 $campaign->read_ratio = 0;
             }

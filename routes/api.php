@@ -27,6 +27,7 @@ require __DIR__.'/api/template.php';
 require __DIR__.'/api/webhook.php';
 require __DIR__.'/api/dashboard.php';
 require __DIR__.'/api/notification.php';
+require __DIR__.'/api/utility.php';
 
 // Utility: clear cache (dev/ops helper)
 Route::get('/run-command', function () {

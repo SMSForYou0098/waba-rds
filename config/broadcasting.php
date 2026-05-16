@@ -7,29 +7,44 @@ return [
     | Default Broadcaster
     |--------------------------------------------------------------------------
     |
-    | This option controls the default broadcaster that will be used by the
-    | framework when an event needs to be broadcast. You may set this to
-    | any of the connections defined in the "connections" array below.
+    | Supported: "reverb", "pusher", "ably", "log", "null"
     |
-    | Supported: "pusher", "ably", "redis", "log", "null"
+    | Laravel 13 prefers BROADCAST_CONNECTION; BROADCAST_DRIVER is accepted as a fallback.
     |
     */
 
-    'default' => env('BROADCAST_DRIVER', 'pusher'),
+    'default' => env('BROADCAST_CONNECTION', env('BROADCAST_DRIVER', 'reverb')),
 
     /*
     |--------------------------------------------------------------------------
     | Broadcast Connections
     |--------------------------------------------------------------------------
-    |
-    | Here you may define all of the broadcast connections that will be used
-    | to broadcast events to other systems or over websockets. Samples of
-    | each available type of connection are provided inside this array.
-    |
     */
 
     'connections' => [
 
+        /*
+         * First-party Laravel Reverb (uses REVERB_APP_ID / REVERB_APP_KEY / REVERB_APP_SECRET).
+         * Same protocol as Pusher JS; Echo can use broadcaster "reverb" or "pusher" + these credentials.
+         */
+        'reverb' => [
+            'driver' => 'reverb',
+            'key' => env('REVERB_APP_KEY'),
+            'secret' => env('REVERB_APP_SECRET'),
+            'app_id' => env('REVERB_APP_ID'),
+            'options' => [
+                'host' => env('REVERB_HOST'),
+                'port' => env('REVERB_PORT', 443),
+                'scheme' => env('REVERB_SCHEME', 'https'),
+                'useTLS' => env('REVERB_SCHEME', 'https') === 'https',
+            ],
+            'client_options' => [
+            ],
+        ],
+
+        /*
+         * Pusher.com SaaS (or legacy: pusher driver pointed at a Reverb-compatible server).
+         */
         'pusher' => [
             'driver' => 'pusher',
             'key' => env('PUSHER_APP_KEY'),
@@ -37,14 +52,13 @@ return [
             'app_id' => env('PUSHER_APP_ID'),
             'options' => [
                 'cluster' => env('PUSHER_APP_CLUSTER'),
-                'host' => '127.0.0.1',
-                'port' => 6001,
-                'scheme' => 'http',
-                // 'encrypted' => true,
-                'useTLS' => true,
+                'host' => env('PUSHER_HOST') ?: 'api-'.env('PUSHER_APP_CLUSTER', 'mt1').'.pusher.com',
+                'port' => env('PUSHER_PORT', 443),
+                'scheme' => env('PUSHER_SCHEME', 'https'),
+                'encrypted' => true,
+                'useTLS' => env('PUSHER_SCHEME', 'https') === 'https',
             ],
             'client_options' => [
-                // Guzzle client options: https://docs.guzzlephp.org/en/stable/request-options.html
             ],
         ],
 

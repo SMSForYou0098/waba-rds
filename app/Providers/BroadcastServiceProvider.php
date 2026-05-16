@@ -12,7 +12,10 @@ class BroadcastServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Broadcast::routes();
+        // Passport / Bearer: private channel auth must use the API stack (not web + session).
+        Broadcast::routes([
+            'middleware' => ['api', 'auth:api'],
+        ]);
 
         require base_path('routes/channels.php');
     }
