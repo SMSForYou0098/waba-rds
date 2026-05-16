@@ -116,7 +116,9 @@ class CampaignDispatcher
         $isTemplate = $campaignType === 'template';
         $templateLanguage = (string) ($context['template_language'] ?? 'en_US');
         $templateBlocks = is_array($context['template_blocks'] ?? null) ? $context['template_blocks'] : [];
-        $bodyValues = is_array($context['body_values'] ?? null) ? array_values($context['body_values']) : [];
+        $bodyValues = ($context['campaign_source'] ?? 'manual') === 'excel'
+            ? array_values((array) ($context['row_values_map'][$mobile] ?? []))
+            : (is_array($context['body_values'] ?? null) ? array_values($context['body_values']) : []);
         $buttonValues = $context['button_value'] ?? [];
         if (! is_array($buttonValues)) {
             $buttonValues = $buttonValues !== null && $buttonValues !== '' ? [$buttonValues] : [];

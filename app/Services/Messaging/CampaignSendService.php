@@ -38,7 +38,22 @@ class CampaignSendService
 
         $normalizedType = strtolower((string) $validated['campaign_type']) === 'custom' ? 'custom' : 'template';
 
-        $numbers = $this->normalizeNumbers($validated['numbers']);
+        $campaignSource = ($validated['campaign_source'] ?? 'manual') === 'excel' ? 'excel' : 'manual';
+
+        $rowValuesMap = [];
+        if ($campaignSource === 'excel') {
+            $rawNumbers = array_map(fn ($row) => (string) ($row['number'] ?? ''), $validated['numbers']);
+            foreach ($validated['numbers'] as $row) {
+                $normalized = preg_replace('/\D/', '', (string) ($row['number'] ?? ''));
+                if ($normalized !== '') {
+                    $rowValuesMap[$normalized] = $row['value'] ?? [];
+                }
+            }
+        } else {
+            $rawNumbers = $validated['numbers'];
+        }
+
+        $numbers = $this->normalizeNumbers($rawNumbers);
         $invalid = $this->firstInvalidNumberLength($numbers);
         if ($invalid !== null) {
             return $this->jsonError(
@@ -111,7 +126,7 @@ class CampaignSendService
             return $this->jsonError($e->getMessage(), 422);
         }
 
-        $context = $this->buildDispatchContext($validated, $normalizedType, $templateBlocks, $resolvedLanguage, count($numbers));
+        $context = $this->buildDispatchContext($validated, $normalizedType, $templateBlocks, $resolvedLanguage, count($numbers), $campaignSource, $rowValuesMap);
         Cache::put('campaign_send:'.$campaign->id, $context, now()->addHours(48));
 
         $this->campaignDispatcher->start($campaign, $numbers, (string) $config->whatsapp_phone_id, $context);
@@ -204,6 +219,7 @@ class CampaignSendService
     /**
      * @param  array<string, mixed>  $validated
      * @param  array<string, mixed>  $templateBlocks
+     * @param  array<string, list<mixed>>  $rowValuesMap  Keyed by normalized phone number; only populated in excel mode.
      * @return array<string, mixed>
      */
     private function buildDispatchContext(
@@ -211,16 +227,20 @@ class CampaignSendService
         string $normalizedType,
         array $templateBlocks,
         string $resolvedLanguage,
-        int $totalRecipients
+        int $totalRecipients,
+        string $campaignSource = 'manual',
+        array $rowValuesMap = []
     ): array {
         return [
             'user_id' => (int) $validated['user_id'],
             'campaign_type' => $normalizedType,
+            'campaign_source' => $campaignSource,
             'template_name' => $validated['template_name'] ?? null,
             'custom_text' => $validated['custom_text'] ?? null,
             'template_language' => $resolvedLanguage,
             'template_blocks' => $templateBlocks,
             'body_values' => $validated['body_values'] ?? [],
+            'row_values_map' => $rowValuesMap,
             'button_value' => $validated['button_value'] ?? [],
             'header_media_url' => $validated['header_media_url'] ?? null,
             'header_media_id' => $validated['header_media_id'] ?? null,
