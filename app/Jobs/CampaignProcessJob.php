@@ -6,6 +6,7 @@ use App\Events\CampaignCompleted;
 use App\Events\CampaignProgress;
 use App\Models\Campaign\CampaignReport;
 use App\Models\User;
+use App\Services\Meta\MetaApiUrl;
 use App\Services\Messaging\WhatsAppCampaignMessageSender;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -52,15 +53,14 @@ class CampaignProcessJob implements ShouldQueue
             return;
         }
 
-        $waApi = env('WA_API_MESSAGES');
-        if (! $waApi) {
+        if (! env('WA_API_MESSAGES')) {
             Log::error('CampaignProcessJob WA_API_MESSAGES not configured');
             Cache::forget($this->cacheKey());
 
             return;
         }
 
-        $messagesApi = str_replace(':whatsapp_phone_id:', $user->userConfig->whatsapp_phone_id, $waApi);
+        $messagesApi = MetaApiUrl::messages((string) $user->userConfig->whatsapp_phone_id);
         $waToken = $user->userConfig->meta_access_token;
 
         $campaignIdStr = (string) $this->campaignId;

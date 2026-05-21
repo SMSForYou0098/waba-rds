@@ -2,13 +2,13 @@
 
 namespace App\Services\Messaging;
 
-use GuzzleHttp\Client;
-use GuzzleHttp\Exception\GuzzleException;
+use App\Services\Meta\MetaGraphClient;
 
 class WhatsAppCampaignMessageSender
 {
     public function __construct(
-        protected WhatsAppMessagePayloadService $payloadService
+        protected WhatsAppMessagePayloadService $payloadService,
+        protected MetaGraphClient $graph,
     ) {}
 
     /**
@@ -35,61 +35,42 @@ class WhatsAppCampaignMessageSender
         $effectiveMedia = filled($mediaId) ? (string) $mediaId : (filled($headerMediaUrl) ? (string) $headerMediaUrl : null);
         $resolvedMediaType = filled($mediaId) ? 'id' : (($headerMediaUrl !== null && $headerMediaUrl !== '') && is_numeric($headerMediaUrl) ? 'id' : 'link');
 
-        $client = new Client;
+        $payload = $this->payloadService->generate(
+            (string) $to,
+            $isTemplate ? 'template' : 'custom',
+            $context['template_name'] ?? null,
+            $templateLanguage,
+            $templateBlocks,
+            $context['custom_text'] ?? null,
+            $bodyValues,
+            $buttonValues,
+            $isTemplate ? null : 'text',
+            $effectiveMedia,
+            $resolvedMediaType,
+            $context['header_file_name'] ?? null,
+            []
+        );
 
-        try {
-            $payload = $this->payloadService->generate(
-                (string) $to,
-                $isTemplate ? 'template' : 'custom',
-                $context['template_name'] ?? null,
-                $templateLanguage,
-                $templateBlocks,
-                $context['custom_text'] ?? null,
-                $bodyValues,
-                $buttonValues,
-                $isTemplate ? null : 'text',
-                $effectiveMedia,
-                $resolvedMediaType,
-                $context['header_file_name'] ?? null,
-                []
-            );
+        $result = $this->graph->post($messagesApi, $waToken, $payload);
+        $responseData = $result['body'];
+        $statusCode = $result['status'];
 
-            $response = $client->post($messagesApi, [
-                'headers' => [
-                    'Content-Type' => 'application/json',
-                    'Authorization' => 'Bearer '.$waToken,
-                ],
-                'body' => json_encode($payload),
-                'http_errors' => false,
-            ]);
-
-            $statusCode = $response->getStatusCode();
-            $responseData = json_decode($response->getBody()->getContents(), true);
-
-            if (isset($responseData['messages'][0]['id'])) {
-                return [
-                    'success' => true,
-                    'message_id' => (string) $responseData['messages'][0]['id'],
-                    'error' => null,
-                    'meta' => null,
-                ];
-            }
-
-            $metaError = $responseData['error'] ?? null;
-
+        if (isset($responseData['messages'][0]['id'])) {
             return [
-                'success' => false,
-                'message_id' => null,
-                'error' => is_array($metaError) ? ($metaError['message'] ?? 'Meta API error') : 'Message send failed',
-                'meta' => is_array($metaError) ? $metaError : ['raw' => $responseData, 'status' => $statusCode],
-            ];
-        } catch (GuzzleException $e) {
-            return [
-                'success' => false,
-                'message_id' => null,
-                'error' => 'Connection error: '.$e->getMessage(),
+                'success' => true,
+                'message_id' => (string) $responseData['messages'][0]['id'],
+                'error' => null,
                 'meta' => null,
             ];
         }
+
+        $metaError = $responseData['error'] ?? null;
+
+        return [
+            'success' => false,
+            'message_id' => null,
+            'error' => is_array($metaError) ? ($metaError['message'] ?? 'Meta API error') : 'Message send failed',
+            'meta' => is_array($metaError) ? $metaError : ['raw' => $responseData, 'status' => $statusCode],
+        ];
     }
 }

@@ -2,22 +2,18 @@
 
 namespace App\Http\Controllers\Template;
 
+use App\Exceptions\Messaging\LegacyApiValidationException;
 use App\Http\Controllers\Controller;
-use App\Models\Auth\ApiKey;
 use App\Models\Template\CrouselPreset;
-use Exception;
-use GuzzleHttp\Client;
-use GuzzleHttp\Exception\GuzzleException;
+use App\Services\Template\CrouselPresetQuickSendService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class CrouselPresetController extends Controller
 {
-    protected $client;
-
-    public function __construct()
-    {
-        $this->client = new Client();
-    }
+    public function __construct(
+        private readonly CrouselPresetQuickSendService $quickSendService,
+    ) {}
     public function index($id)
     {
         $latestPresets = CrouselPreset::where('user_id', $id)->latest()->get();
@@ -64,67 +60,27 @@ class CrouselPresetController extends Controller
         return response()->json(['status' => true], 200);
     }
   
-    public function quickSend(Request $request)
+    public function quickSend(Request $request): JsonResponse
     {
-        $params = $request->only(['to', 'apikey', 'preset']);
-
-        if (count($params) !== 3) {
-            return response()->json(['status' => false, 'error' => 'Invalid parameter(s)', 'invalid_params' => array_diff(array_keys($request->query()), ['to', 'apikey', 'preset'])], 400);
-        }
-
-        ['to' => $to, 'apikey' => $apikey, 'preset' => $preset] = $params;
-
-        if (!is_numeric($to) || strlen($to) < 10) {
-            return response()->json(['error code' => 'SF2', 'status' => false, 'error' => 'Invalid Mobile number'], 401);
-        }
-
-        $user = ApiKey::where('status', 'true')
-            ->where('key', $apikey)
-            ->with('user.userConfig')
-            ->first();
-
-        if (!$user) {
-            return response()->json(['error code' => 'SF0', 'status' => false, 'error' => 'Invalid API key'], 401);
-        }
-
-        if ($user->user->credit_expired === 'true') {
-            return response()->json(['error code' => 'SF1', 'status' => false, 'error' => 'Insufficient Credits to send a message. Please recharge your account to use our api smoothly. Thank You'], 401);
-        }
-
-        $payLoad = CrouselPreset::where('name', $preset)->value('object');
-        if (!$payLoad) {
-            return response()->json(['status' => false, 'error' => 'Preset not found'], 404);
-        }
-
-        $object = str_replace(':number:', $to, $payLoad);
-        $whatapp_phone_id = $user->user->userConfig->whatsapp_phone_id;
-        $waToken = $user->user->userConfig->meta_access_token;
-        $messageSendApi = env('WA_API_MESSAGES');
-        $messagesApi = str_replace(':whatsapp_phone_id:', $whatapp_phone_id, $messageSendApi);
-
         try {
-            $response = $this->client->post($messagesApi, [
-                'headers' => [
-                    'Content-Type' => 'application/json',
-                    'Authorization' => "Bearer {$waToken}",
-                ],
-                'json' => json_decode($object, true),
-            ]);
-
-            $responseBody = json_decode($response->getBody()->getContents());
-
-            if (isset($responseBody->messages[0]->id)) {
-                return response()->json([
-                    'status' => true,
-                    'message_id' => encrypt($responseBody->messages[0]->id),
-                    'message' => 'Message submitted successfully'
-                ], 200);
-            }
-
-            return response()->json(['success' => $responseBody]);
-        } catch (GuzzleException | Exception $e) {
-            return response()->json(['error' => 'Something Went Wrong', 'errorMessage' => $e->getMessage()], 500);
+            $result = $this->quickSendService->execute($request);
+        } catch (LegacyApiValidationException $e) {
+            return response()->json([
+                'error code' => $e->errorCode,
+                'status' => false,
+                'error' => $e->getMessage(),
+            ], $e->httpStatus);
         }
+
+        $status = $result['http_status'];
+        unset($result['http_status'], $result['ok']);
+
+        if (isset($result['error_code'])) {
+            $result['error code'] = $result['error_code'];
+            unset($result['error_code']);
+        }
+
+        return response()->json($result, $status);
     }
   
  	public function destroy($id)

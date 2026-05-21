@@ -5,92 +5,89 @@ namespace App\Http\Controllers\Dashboard;
 use App\Http\Controllers\Controller;
 use App\Models\Campaign\Campaign;
 use App\Models\Report\OutReport;
-use App\Models\Report\Report;
-use App\Models\Campaign\ScheduleCampaign;
 use App\Models\User;
+use App\Services\Meta\MetaApiUrl;
+use App\Services\Meta\MetaGraphClient;
 use Carbon\Carbon;
-use GuzzleHttp\Client;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
 class DashboardController extends Controller
 {
+    public function __construct(
+        private readonly MetaGraphClient $graph,
+    ) {}
+
     public function weeklyReport($id)
     {
-        // Cache key unique to this user and function
-        $cacheKey = "weekly_report_user_{$id}";
-        // Cache duration - 1 hour (3600 seconds)
-        $cacheDuration = 3600;
+        $cacheKey = "weekly_report_v2_user_{$id}";
 
-        // Try to get data from cache first
-        return Cache::remember($cacheKey, $cacheDuration, function () use ($id) {
-            try {
-                $user = User::where('id', $id)->with('userConfig')->firstOrFail();
-				
-                if (!$user->userConfig || !$user->userConfig->whatsapp_business_account_id || !$user->userConfig->meta_access_token) {
-                    return response()->json(['error' => 'Missing configuration'], 200);
-                }
+        try {
+            $payload = Cache::remember($cacheKey, 3600, function () use ($id) {
+                return $this->buildWeeklyReportPayload($id);
+            });
 
-                $wapId = $user->userConfig->whatsapp_business_account_id;
-                $waToken = $user->userConfig->meta_access_token;
+            return response()->json($payload);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'An error occurred: ' . $e->getMessage()], 500);
+        }
+    }
 
-                $apiUrl = str_replace(
-                    [':wapId:', ':realtime_unix:', ':waToken:'],
-                    [$wapId, time(), $waToken],
-                    env('WA_API_ANALYTICS')
-                );
+    private function buildWeeklyReportPayload(int $id): array
+    {
+        $user = User::where('id', $id)->with('userConfig')->firstOrFail();
 
-                $client = new Client();
-                
-                $response = $client->get($apiUrl, [
-                    'headers' => ['Authorization' => 'Bearer ' . $waToken]
-                ]);
-				
-                $responseData = json_decode($response->getBody()->getContents(), true);
-                $dataPoints = $responseData['conversation_analytics']['data'][0]['data_points'] ?? [];
-                $marketingData = $utilityData = $serviceData = $authData = [];
+        if (!$user->userConfig || !$user->userConfig->whatsapp_business_account_id || !$user->userConfig->meta_access_token) {
+            throw new \RuntimeException('Missing configuration');
+        }
 
-                foreach ($dataPoints as $dataPoint) {
-                    $date = Carbon::createFromTimestamp($dataPoint['start'])->format('d/m/Y');
+        $wapId = $user->userConfig->whatsapp_business_account_id;
+        $waToken = $user->userConfig->meta_access_token;
+        $endUnix = time();
+        $startUnix = Carbon::now()->subDays(7)->startOfDay()->timestamp;
 
-                    switch ($dataPoint['conversation_category']) {
-                        case 'MARKETING':
-                            $marketingData[$date] = ($marketingData[$date] ?? 0) + $dataPoint['conversation'];
-                            break;
-                        case 'UTILITY':
-                            $utilityData[$date] = ($utilityData[$date] ?? 0) + $dataPoint['conversation'];
-                            break;
-                        case 'SERVICE':
-                            $serviceData[$date] = ($serviceData[$date] ?? 0) + $dataPoint['conversation'];
-                            break;
-                        case 'AUTHENTICATION':
-                            $authData[$date] = ($authData[$date] ?? 0) + $dataPoint['conversation'];
-                            break;
-                    }
-                }
+        $apiUrl = MetaApiUrl::analytics($wapId, $startUnix, $endUnix, $waToken);
+        $result = $this->graph->get($apiUrl, $waToken);
+        $responseData = $result['body'];
+        $dataPoints = $responseData['conversation_analytics']['data'][0]['data_points'] ?? [];
+        $marketingData = $utilityData = $serviceData = $authData = [];
 
-                $last7DaysData = collect(range(6, 0))
-                    ->map(fn($i) => Carbon::now()->subDays($i)->format('d/m/Y'))
-                    ->map(fn($date) => [
-                        'date' => $date,
-                        'marketingCount' => $marketingData[$date] ?? 0,
-                        'utilityCount' => $utilityData[$date] ?? 0,
-                        'serviceCount' => $serviceData[$date] ?? 0,
-                        'authCount' => $authData[$date] ?? 0
-                    ])
-                    ->toArray();
+        foreach ($dataPoints as $dataPoint) {
+            $date = Carbon::createFromTimestamp($dataPoint['start'])->format('d/m/Y');
 
-                return response()->json([
-                    'marketingData' => array_column($last7DaysData, 'marketingCount'),
-                    'utilityData' => array_column($last7DaysData, 'utilityCount'),
-                    'serviceData' => array_column($last7DaysData, 'serviceCount'),
-                    'authData' => array_column($last7DaysData, 'authCount'),
-                    'last7DaysData' => $last7DaysData
-                ]);
-            } catch (\Exception $e) {
-                return response()->json(['error' => 'An error occurred: ' . $e->getMessage()], 500);
+            switch ($dataPoint['conversation_category']) {
+                case 'MARKETING':
+                    $marketingData[$date] = ($marketingData[$date] ?? 0) + $dataPoint['conversation'];
+                    break;
+                case 'UTILITY':
+                    $utilityData[$date] = ($utilityData[$date] ?? 0) + $dataPoint['conversation'];
+                    break;
+                case 'SERVICE':
+                    $serviceData[$date] = ($serviceData[$date] ?? 0) + $dataPoint['conversation'];
+                    break;
+                case 'AUTHENTICATION':
+                    $authData[$date] = ($authData[$date] ?? 0) + $dataPoint['conversation'];
+                    break;
             }
-        });
+        }
+
+        $last7DaysData = collect(range(6, 0))
+            ->map(fn ($i) => Carbon::now()->subDays($i)->format('d/m/Y'))
+            ->map(fn ($date) => [
+                'date' => $date,
+                'marketingCount' => $marketingData[$date] ?? 0,
+                'utilityCount' => $utilityData[$date] ?? 0,
+                'serviceCount' => $serviceData[$date] ?? 0,
+                'authCount' => $authData[$date] ?? 0,
+            ])
+            ->toArray();
+
+        return [
+            'marketingData' => array_column($last7DaysData, 'marketingCount'),
+            'utilityData' => array_column($last7DaysData, 'utilityCount'),
+            'serviceData' => array_column($last7DaysData, 'serviceCount'),
+            'authData' => array_column($last7DaysData, 'authCount'),
+            'last7DaysData' => $last7DaysData,
+        ];
     }
 
 

@@ -8,8 +8,9 @@ use App\Models\User;
 use App\Models\Campaign\Campaign;
 use App\Models\Billing\Balance;
 use App\Models\Contact\Group;
+use App\Services\Meta\MetaApiUrl;
+use App\Services\Meta\MetaGraphClient;
 use Carbon\Carbon;
-use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 
@@ -17,8 +18,9 @@ class ExportHandleController extends Controller
 {
     protected $today;
 
-    public function __construct()
-    {
+    public function __construct(
+        private readonly MetaGraphClient $graph,
+    ) {
         $this->today = Carbon::today()->toDateString();
     }
     public function ExportReport(Request $request, $id)
@@ -79,26 +81,17 @@ class ExportHandleController extends Controller
     public function ExportCostReport($id)
     {
         $report = User::where('id', $id)->with('userConfig', 'pricingModel')->first();
-        $client = new Client();
         $wapId = $report->userConfig->whatsapp_business_account_id;
         $waToken = $report->userConfig->meta_access_token;
         $MP = $report->pricingModel->marketing_price;
         $UP = $report->pricingModel->utility_price;
-        $timeStamp = now()->timestamp;
-        $apiUrl = str_replace(
-            [':wapId:', ':realtime_unix:', ':waToken:'],
-            [$wapId, $timeStamp, $waToken],
-            env('WA_API_ANALYTICS')
-        );
+        $endUnix = now()->timestamp;
+        $startUnix = Carbon::now()->subYear()->startOfDay()->timestamp;
         try {
-            $response = $client->get($apiUrl, [
-                'headers' => [
-                    'Authorization' => 'Bearer ' . $waToken,
-                    'Accept' => 'application/json',
-                ]
-            ]);
+            $apiUrl = MetaApiUrl::analytics($wapId, $startUnix, $endUnix, $waToken);
+            $result = $this->graph->get($apiUrl, $waToken);
 
-            $data = json_decode($response->getBody(), true)['conversation_analytics']['data'][0]['data_points'];
+            $data = $result['body']['conversation_analytics']['data'][0]['data_points'] ?? [];
 
             usort($data, function ($a, $b) {
                 return $b['start'] - $a['start'];
@@ -125,22 +118,14 @@ class ExportHandleController extends Controller
     }
     public function ExportTemplateReport($id)
     {
-        $client = new Client();
         $report = User::where('id', $id)->with('userConfig')->first();
         $wapId = $report->userConfig->whatsapp_business_account_id;
         $waToken = $report->userConfig->meta_access_token;
-        $templates = env('WA_API_TEMPLATES');
-        $templatesApi = str_replace(':whatsapp_business_account_id:', $wapId, $templates);
-        $templatesApi = str_replace(':waToken:', $waToken, $templatesApi);
         try {
-            $response = $client->get($templatesApi, [
-                'headers' => [
-                    'Authorization' => 'Bearer ' . $waToken,
-                    'Accept' => 'application/json',
-                ]
-            ]);
+            $templatesApi = MetaApiUrl::templates($wapId, $waToken);
+            $result = $this->graph->get($templatesApi, $waToken);
 
-            $data = json_decode($response->getBody(), true)['data'];
+            $data = $result['body']['data'] ?? [];
             $reportData = [
                 'reports' => collect($data)->map(function ($item) use ($report) {
                     return [

@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\Messaging\MessagingController;
 use App\Http\Controllers\Messaging\WhatsAppMessageRequest;
-use App\Http\Controllers\Messaging\SendMessageByObject;
 use App\Http\Controllers\Messaging\MessageController;
 use App\Http\Controllers\Messaging\HandleBlockedNumber;
 use Illuminate\Support\Facades\Route;
@@ -10,7 +9,6 @@ use Illuminate\Support\Facades\Route;
 // ─── WhatsApp Messages ────────────────────────────────────────────────────────
 Route::match(['get', 'post'], 'send-messages', [WhatsAppMessageRequest::class, 'sendMessages']);
 Route::post('send-media-messages', [WhatsAppMessageRequest::class, 'sendMediaMessage']);
-Route::post('/messages/{id}', [SendMessageByObject::class, 'sendMessage']);
 
 // ─── Bulk campaign messaging ────────────────────────────────────────────────────
 Route::post('validate-campaign', [MessagingController::class, 'validateCampaign'])->middleware(['auth:api', 'check.permission:View Campaign']);

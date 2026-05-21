@@ -26,8 +26,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('media:reupload')->dailyAt('00:00');
       	$schedule->command('webhook:process')->everyFiveMinutes();
       	//$schedule->command('plans:expire')->everyFiveMinutes();
-      	//$schedule->command('campaigns:process-status')->everyFourHours();
-      	//$schedule->command('campaigns:process-status')->everyFiveMinutes();
+        $schedule->command('balances:archive')->dailyAt('02:00')->withoutOverlapping();
         $schedule->call(function () {
             $threshold = Carbon::now()->subMinutes(5);
 

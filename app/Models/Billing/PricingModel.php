@@ -15,6 +15,8 @@ class PricingModel extends Model
         'price_alert',
         'marketing_price',
         'utility_price',
+        'service_price',
+        'authentication_price',
     ];
     public function user()
     {

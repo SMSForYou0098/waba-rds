@@ -18,6 +18,7 @@ require __DIR__.'/api/user.php';
 require __DIR__.'/api/chat.php';
 require __DIR__.'/api/campaign.php';
 require __DIR__.'/api/messaging.php';
+require __DIR__.'/api/meta.php';
 require __DIR__.'/api/report.php';
 require __DIR__.'/api/media.php';
 require __DIR__.'/api/billing.php';

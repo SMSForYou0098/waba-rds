@@ -12,6 +12,31 @@ class SendCampaignRequest extends FormRequest
         return $this->user() !== null;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->input('campaign_source') !== 'excel') {
+            return;
+        }
+
+        $numbers = $this->input('numbers');
+        if (! is_array($numbers)) {
+            return;
+        }
+
+        $this->merge([
+            'numbers' => array_map(static function ($row) {
+                if (! is_array($row)) {
+                    return $row;
+                }
+                if (array_key_exists('number', $row)) {
+                    $row['number'] = (string) $row['number'];
+                }
+
+                return $row;
+            }, $numbers),
+        ]);
+    }
+
     /**
      * @return array<string, mixed>
      */

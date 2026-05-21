@@ -4,23 +4,14 @@ namespace App\Http\Controllers\Campaign;
 
 use App\Http\Controllers\Controller;
 use App\Models\Campaign\Campaign;
-use App\Models\Report\Logdata;
 use App\Models\Campaign\CampaignReport;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
-use App\Services\Campaign\CampaignProcessingService;
 
 class CampaignController extends Controller
 {
-    protected CampaignProcessingService $campaignProcessingService;
-
-  	public function __construct(CampaignProcessingService $campaignProcessingService)
-    {
-        $this->campaignProcessingService = $campaignProcessingService;
-    }
-  
     public function index(Request $request, $id)
     {
         // Start with a base query
@@ -272,44 +263,7 @@ class CampaignController extends Controller
             return response()->json(['message' => 'Error: ' . $exception->getMessage()], 500);
         }
     }
-  
-  	public function processCampaign(Request $request)
-    {
-        // Validate request
-        $request->validate([
-            'campaign_id' => 'required|integer|exists:campaigns,id'
-        ]);
 
-        $campaignId = $request->input('campaign_id');
-
-        try {
-            $result = $this->campaignProcessingService->processCampaignById($campaignId);
-            return response()->json($result, $result['success'] ? 200 : 404);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'An error occurred while processing the campaign.',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-    public function processAllCampaigns()
-    {
-        try {
-            $result = $this->campaignProcessingService->processCampaignsInTimeRange();
-			
-            return response()->json($result, 200);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'An error occurred while processing campaigns.',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-  
     public function FlowData(Request $request)
     {
         // Log the data
