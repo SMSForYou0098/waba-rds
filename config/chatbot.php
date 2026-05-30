@@ -1,0 +1,43 @@
+<?php
+
+return [
+    'engine' => env('CHATBOT_ENGINE', 'legacy'),
+    'session_ttl_minutes' => (int) env('CHATBOT_SESSION_TTL', 1440),
+    'fuzzy_threshold' => (float) env('CHATBOT_FUZZY_THRESHOLD', 0.85),
+    'trigger_policy' => env('CHATBOT_TRIGGER_POLICY', 'first_match'),
+    'queue' => env('CHATBOT_QUEUE', 'default'),
+    'simulation' => [
+        'max_steps' => 50,
+        'default_wa_id' => '919800000000',
+    ],
+    'node_types' => [
+        'trigger.keyword',
+        'trigger.default',
+        'trigger.regex',
+        'message.text',
+        'message.template',
+        'message.interactive_buttons',
+        'message.list_dynamic',
+        'message.list_preset',
+        'logic.ask',
+        'logic.validate',
+        'logic.condition',
+        'logic.set_var',
+        'logic.route_by_var',
+        'integration.api',
+        'flow.subflow',
+        'flow.end',
+        'handoff.agent',
+    ],
+    'edge_events' => [
+        'matched',
+        'user_input',
+        'valid',
+        'invalid',
+        'completed',
+        'yes',
+        'no',
+        'button_reply',
+        'route',
+    ],
+];

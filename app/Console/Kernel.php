@@ -27,6 +27,7 @@ class Kernel extends ConsoleKernel
       	$schedule->command('webhook:process')->everyFiveMinutes();
       	//$schedule->command('plans:expire')->everyFiveMinutes();
         $schedule->command('balances:archive')->dailyAt('02:00')->withoutOverlapping();
+        $schedule->command('chatbot:session-prune')->daily();
         $schedule->call(function () {
             $threshold = Carbon::now()->subMinutes(5);
 

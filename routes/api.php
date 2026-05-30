@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Route;
 require __DIR__.'/api/auth.php';
 require __DIR__.'/api/user.php';
 require __DIR__.'/api/chat.php';
+require __DIR__.'/api/chatbot_flow.php';
 require __DIR__.'/api/campaign.php';
 require __DIR__.'/api/messaging.php';
 require __DIR__.'/api/meta.php';

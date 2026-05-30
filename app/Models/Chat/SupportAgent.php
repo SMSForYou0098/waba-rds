@@ -2,6 +2,8 @@
 
 namespace App\Models\Chat;
 
+use App\Models\Report\AgentHasReport;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
